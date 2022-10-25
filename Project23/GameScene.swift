@@ -41,6 +41,9 @@ class GameScene: SKScene {
     var chainDelay = 3.0
     var nextSequenceQueued = true
     
+    var randomEdgeXVelocity = Int.random(in: 8...15)
+    var randomMiddleXVelocity = Int.random(in: 3...5)
+    
     var isGameEnded = false
     
     override func didMove(to view: SKView) {
@@ -121,11 +124,17 @@ class GameScene: SKScene {
         let nodesAtPoint = nodes(at: location)
         
         for case let node as SKSpriteNode in nodesAtPoint {
-            if node.name == "enemy" {
+            if node.name == "enemy" || node.name == "fastEnemy" {
                 //destroy penguin
                 if let emitter = SKEmitterNode(fileNamed: "sliceHitEnemy") {
                     emitter.position = node.position
                     addChild(emitter)
+                }
+                
+                if node.name == "enemy" {
+                    self.score += 1
+                } else if node.name == "fastEnemy" {
+                    self.score += 5
                 }
                 
                 node.name = ""
@@ -137,8 +146,6 @@ class GameScene: SKScene {
                 
                 let seq = SKAction.sequence([group, .removeFromParent()])
                 node.run(seq)
-                
-                score += 1
                 
                 if let index = activeEnemies.firstIndex(of: node) {
                     activeEnemies.remove(at: index)
@@ -181,6 +188,10 @@ class GameScene: SKScene {
         isGameEnded = true
         physicsWorld.speed = 0
         isUserInteractionEnabled = false
+        
+        let gameOver = SKSpriteNode(imageNamed: "gameOver")
+        gameOver.position = CGPoint(x: 512, y: 384)
+        addChild(gameOver)
         
         bombSoundEffect?.stop()
         bombSoundEffect = nil
@@ -284,6 +295,10 @@ class GameScene: SKScene {
                 emitter.position = CGPoint(x: 76, y: 64)
                 enemy.addChild(emitter)
             }
+        } else if enemyType == 6 {
+            enemy = SKSpriteNode(imageNamed: "penguin")
+            run(SKAction.playSoundFileNamed("launch.caf", waitForCompletion: false))
+            enemy.name = "fastEnemy"
         } else {
             enemy = SKSpriteNode(imageNamed: "penguin")
             run(SKAction.playSoundFileNamed("launch.caf", waitForCompletion: false))
@@ -293,20 +308,26 @@ class GameScene: SKScene {
         let randomPosition = CGPoint(x: Int.random(in: 64...960), y: -128)
         enemy.position = randomPosition
         
-        let randomAngularVelocity = CGFloat.random(in: -3...3)
-        let randomXVelocity: Int
+        var randomAngularVelocity = CGFloat.random(in: -3...3)
+        var randomXVelocity: Int
         
         if randomPosition.x < 256 {
-            randomXVelocity = Int.random(in: 8...15)
+            randomXVelocity = randomEdgeXVelocity
         } else if randomPosition.x < 512 {
-            randomXVelocity = Int.random(in: 3...5)
+            randomXVelocity = randomMiddleXVelocity
         } else if randomPosition.x < 768 {
-            randomXVelocity = -Int.random(in: 3...5)
+            randomXVelocity = -randomMiddleXVelocity
         } else {
-            randomXVelocity = -Int.random(in: 8...15)
+            randomXVelocity = -randomEdgeXVelocity
         }
         
-        let randomYVelocity = Int.random(in: 24...32)
+        var randomYVelocity = Int.random(in: 24...32)
+        
+        if enemy.name == "fastEnemy" {
+            randomXVelocity += 10
+            randomYVelocity += 8
+            randomAngularVelocity *= 5
+        }
         
         enemy.physicsBody = SKPhysicsBody(circleOfRadius: 64)
         enemy.physicsBody?.velocity = CGVector(dx: randomXVelocity * 40, dy: randomYVelocity * 40)
@@ -346,7 +367,7 @@ class GameScene: SKScene {
                 if node.position.y < -140 {
                     node.removeAllActions()
                     
-                    if node.name == "enemy" {
+                    if node.name == "enemy" || node.name == "fastEnemy" {
                         node.name = ""
                         subtractLife()
                         
